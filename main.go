@@ -60,9 +60,9 @@ func validateEnglishDescription(desc string) bool {
 		return false
 	}
 	// 首字母必须大写
-	if !strings.HasPrefix(strings.ToUpper(desc[:1]), desc[:1]) {
-		return false
-	}
+	// if !strings.HasPrefix(strings.ToUpper(desc[:1]), desc[:1]) {
+	// 	return false
+	// }
 	// 只允许英文和基本标点
 	re := regexp.MustCompile(`^[A-Za-z0-9 ,.!?\-$begin:math:text$$end:math:text$]+$`)
 	return re.MatchString(desc)
@@ -157,8 +157,8 @@ func main() {
 	fmt.Println("--------------------------------------------------")
 
 	// 确认提交
-	confirm := strings.ToLower(readLine("是否确认提交? (y/n): "))
-	if confirm != "y" && confirm != "yes" {
+	confirm := strings.ToLower(readLine("是否确认提交? (Y/N): "))
+	if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
 		fmt.Println(ColorRed + "提交已取消。" + ColorReset)
 		os.Exit(0)
 	}
