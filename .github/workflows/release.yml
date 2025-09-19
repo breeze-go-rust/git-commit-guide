@@ -1,0 +1,90 @@
+name: Release
+
+# 触发条件：当创建新的 Git Tag 时触发
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # 匹配 v1.0.0 这样的版本标签
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 配置需要构建的平台
+        include:
+          - os: linux
+            arch: amd64
+            goos: linux
+            goarch: amd64
+          - os: linux
+            arch: arm64
+            goos: linux
+            goarch: arm64
+          - os: macos
+            arch: amd64
+            goos: darwin
+            goarch: amd64
+          - os: macos
+            arch: arm64
+            goos: darwin
+            goarch: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'  # 使用项目对应的 Go 版本
+
+      - name: Extract version from tag
+        id: extract_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Build binary
+        run: |
+          # 定义输出文件名
+          BINARY_NAME="git-cm-${{ env.VERSION }}-${{ matrix.os }}-${{ matrix.arch }}"
+          # 交叉编译
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-X main.version=${{ env.VERSION }}" -o $BINARY_NAME
+          # 压缩二进制文件
+          zip ${BINARY_NAME}.zip $BINARY_NAME
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-cm-${{ matrix.os }}-${{ matrix.arch }}
+          path: git-cm-*.zip
+
+  release:
+    name: Create GitHub Release
+    needs: build  # 依赖 build 任务完成
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Extract version from tag
+        id: extract_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # 从 CHANGELOG.md 读取发布说明（如果有）
+          body_path: CHANGELOG.md
+          # 上传所有构建产物到 Release
+          files: |
+            artifacts/**/*.zip
+          # 自动生成发布说明中的下载链接
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 自动生成的 GitHub 令牌
